@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <link rel="stylesheet" href="./src/style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>校園主題系統介面</title>
+    <style>
+        /* 基礎設定，確保畫面填滿且無邊距 */
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden; /* 防止捲動軸出現 */
+        }
+
+        /* 向量底圖容器：固定在最底層 */
+        .svg-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: -1;
+        }
+
+        /* 背景 SVG 確保能適應各種螢幕尺寸 */
+        .svg-background svg {
+            width: 100%;
+            height: 100%;
+            object-fit: cover; /* 讓圖形保持比例並填滿畫面 */
+        }
+
+        /* 內容容器：使用現代化的 Flexbox 將內容置中 */
+        .content-wrapper {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1;
+        }
+
+        /* 雲朵飄移動畫：純水平由左至右，徹底杜絕任何上下位移 */
+        @keyframes drift {
+            0% { transform: translateX(-350px); }
+            100% { transform: translateX(1150px); }
+        }
+        
+        /* 雲朵淡入縮放動畫：嚴格依據遠近層次設定最高透明度 */
+        /* 近景層：最接近不透明白色 (Opacity 0.95) */
+        @keyframes fadeNear {
+            0% { opacity: 0; transform: scale(0.65); }
+            15% { opacity: 0.95; transform: scale(1); }
+            85% { opacity: 0.95; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.65); }
+        }
+        /* 中景層：中等透明度 (Opacity 0.65) */
+        @keyframes fadeMid {
+            0% { opacity: 0; transform: scale(0.65); }
+            15% { opacity: 0.65; transform: scale(1); }
+            85% { opacity: 0.65; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.65); }
+        }
+        /* 遠景層：最高透明度，刷淡效果 (Opacity 0.3) */
+        @keyframes fadeFar {
+            0% { opacity: 0; transform: scale(0.65); }
+            15% { opacity: 0.3; transform: scale(1); }
+            85% { opacity: 0.3; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.65); }
+        }
+
+        /* 關鍵修正：強制每一朵雲以「自己的中心點」為基準進行縮放，避免因畫布座標導致的上下位移錯覺 */
+        .cloud-fade-n1, .cloud-fade-n2, .cloud-fade-m1, .cloud-fade-m2, .cloud-fade-f1, .cloud-fade-f2 {
+            transform-box: fill-box;
+            transform-origin: center;
+        }
+
+        /* 近景雲層 (位置最高，幾乎不透明，速度最快) */
+        .cloud-drift-n1 { animation: drift 45s linear infinite -5s; }
+        .cloud-fade-n1 { animation: fadeNear 45s ease-in-out infinite -5s; }
+        .cloud-drift-n2 { animation: drift 55s linear infinite -25s; }
+        .cloud-fade-n2 { animation: fadeNear 55s ease-in-out infinite -25s; }
+
+        /* 中景雲層 (透明度中等，速度中等) */
+        .cloud-drift-m1 { animation: drift 80s linear infinite -15s; }
+        .cloud-fade-m1 { animation: fadeMid 80s ease-in-out infinite -15s; }
+        .cloud-drift-m2 { animation: drift 90s linear infinite -50s; }
+        .cloud-fade-m2 { animation: fadeMid 90s ease-in-out infinite -50s; }
+
+        /* 遠景雲層 (靠近地平線或建築後方，最透明，速度極慢) */
+        .cloud-drift-f1 { animation: drift 130s linear infinite -30s; }
+        .cloud-fade-f1 { animation: fadeFar 130s ease-in-out infinite -30s; }
+        .cloud-drift-f2 { animation: drift 150s linear infinite -80s; }
+        .cloud-fade-f2 { animation: fadeFar 150s ease-in-out infinite -80s; }
+    </style>
+</head>
+<body>
+
+    <!-- 純前端刻劃的 SVG 校園底圖 -->
+    <div class="svg-background">
+        <svg viewBox="0 0 800 1000" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <!-- 天空漸層 -->
+                <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#E1F2FB" />
+                    <stop offset="50%" stop-color="#8DBDE1" />
+                    <stop offset="100%" stop-color="#5B9FD1" />
+                </linearGradient>
+                <!-- 圓頂金黃漸層 -->
+                <radialGradient id="goldGrad" cx="40%" cy="30%" r="60%">
+                    <stop offset="0%" stop-color="#FFF5B8" />
+                    <stop offset="40%" stop-color="#FCD557" />
+                    <stop offset="90%" stop-color="#E8A922" />
+                </radialGradient>
+                <!-- 跑道裁切範圍 -->
+                <clipPath id="trackClip">
+                    <path d="M 0 450 Q 400 420 800 480 L 800 1000 L 0 1000 Z" />
+                </clipPath>
+                
+                <!-- 雲朵形狀模板 (底部也改為圓弧的蓬鬆雲朵) -->
+                <!-- 全圓弧大雲朵 -->
+                <path id="cloudBig" d="M 40 60 C 10 60, 0 30, 25 15 C 20 -15, 70 -25, 90 -5 C 110 -35, 170 -25, 175 10 C 210 5, 230 40, 200 60 C 180 85, 130 80, 115 65 C 90 85, 50 80, 40 60 Z" />
+                <!-- 全圓弧小雲朵 -->
+                <path id="cloudSmall" d="M 25 40 C 5 40, -5 20, 15 10 C 15 -10, 55 -15, 70 -5 C 85 -20, 125 -10, 125 10 C 150 10, 155 35, 135 45 C 120 60, 85 55, 75 45 C 55 60, 30 55, 25 40 Z" />
+            </defs>
+
+            <!-- 天空背景 -->
+            <rect width="800" height="1000" fill="url(#skyGrad)" />
+
+            <!-- 動態白雲 (依據遠、中、近層次分佈) -->
+            <g id="animated-clouds">
+                
+                <!-- 遠景層 (速度極慢，刷淡至透明度 0.3，位置較低) -->
+                <g transform="translate(0, 340) scale(0.9)">
+                    <g class="cloud-drift-f1"><g class="cloud-fade-f1"><use href="#cloudSmall" fill="#FFFFFF" /></g></g>
+                </g>
+                <g transform="translate(0, 390) scale(1.4)">
+                    <g class="cloud-drift-f2"><g class="cloud-fade-f2"><use href="#cloudBig" fill="#FFFFFF" /></g></g>
+                </g>
+
+                <!-- 中景層 (速度中等，透明度 0.6，位置居中) -->
+                <g transform="translate(0, 200) scale(1)">
+                    <g class="cloud-drift-m1"><g class="cloud-fade-m1"><use href="#cloudSmall" fill="#FFFFFF" /></g></g>
+                </g>
+                <g transform="translate(0, 260) scale(1.6)">
+                    <g class="cloud-drift-m2"><g class="cloud-fade-m2"><use href="#cloudBig" fill="#FFFFFF" /></g></g>
+                </g>
+
+                <!-- 近景層 (速度較快，透明度 0.9，位置最高) -->
+                <g transform="translate(0, 80) scale(1.2)">
+                    <g class="cloud-drift-n1"><g class="cloud-fade-n1"><use href="#cloudBig" fill="#FFFFFF" /></g></g>
+                </g>
+                <g transform="translate(0, 130) scale(1.1)">
+                    <g class="cloud-drift-n2"><g class="cloud-fade-n2"><use href="#cloudSmall" fill="#FFFFFF" /></g></g>
+                </g>
+                
+            </g>
+
+            <!-- 遠方草地坡度 -->
+            <path d="M 0 450 Q 400 420 800 480 L 800 1000 L 0 1000 Z" fill="#A4D255" />
+            
+            <!-- 右下角操場跑道 (透視視角調整並往上擴增為 8 條線) -->
+            <g id="running-track">
+                <!-- 跑道磚紅色底層 (重新計算 evenodd 填滿半徑，完美包覆 8 條線的透視跑道) -->
+                <path fill-rule="evenodd" d="M 52 850 A 798 291 0 1 1 1648 850 A 798 291 0 1 1 52 850 M 450 850 A 400 155 0 1 1 1250 850 A 400 155 0 1 1 450 850" fill="#C47373" />
+                <!-- 跑道白色分隔線 (8 條線，Y軸半徑間距 18，X軸半徑間距 54，產生遠近透視感) -->
+                <ellipse cx="850" cy="850" rx="410" ry="160" fill="none" stroke="#FFFFFF" stroke-width="3" />
+                <ellipse cx="850" cy="850" rx="464" ry="178" fill="none" stroke="#FFFFFF" stroke-width="3" />
+                <ellipse cx="850" cy="850" rx="518" ry="196" fill="none" stroke="#FFFFFF" stroke-width="3" />
+                <ellipse cx="850" cy="850" rx="572" ry="214" fill="none" stroke="#FFFFFF" stroke-width="3" />
+                <ellipse cx="850" cy="850" rx="626" ry="232" fill="none" stroke="#FFFFFF" stroke-width="3" />
+                <ellipse cx="850" cy="850" rx="680" ry="250" fill="none" stroke="#FFFFFF" stroke-width="3" />
+                <!-- 依照比例新增的 2 個道次 -->
+                <ellipse cx="850" cy="850" rx="734" ry="268" fill="none" stroke="#FFFFFF" stroke-width="3" />
+                <ellipse cx="850" cy="850" rx="788" ry="286" fill="none" stroke="#FFFFFF" stroke-width="3" />
+            </g>
+
+            <!-- 建築物群 (再次放大10%並上移150px) -->
+            <g id="castle-building" transform="translate(24, 144) scale(0.9)">
+                
+                <!-- 4. 右側粉紅高塔與屋頂 (移至最上層程式碼，使其在視覺上退到黃色建築後方) -->
+                <g transform="translate(412.5, 480) scale(1.3125, 1.0625) translate(-412.5, -480)">
+                    
+                    <!-- 塔身與窗戶：以底部 Y=480 為錨點，縮小 10% (scale 0.9) -->
+                    <g transform="translate(412.5, 480) scale(0.9) translate(-412.5, -480)">
+                        <!-- 塔身改為下窄上寬(底部為頂部的 90%)，增加深粉色邊框加強立體層次 -->
+                        <polygon points="385,230 440,230 437.25,480 387.75,480" fill="#ECA2B9" stroke="#D67B94" stroke-width="2" />
+                        
+                        <!-- 右側小窗戶 (以最下方的窗戶為基準不動，窗戶間隔由 40 加大 25% 變為 50) -->
+                        <g transform="translate(422, 364) scale(0.85) translate(-422, -364)">
+                            <path d="M 415 240 A 7 7 0 0 1 429 240 L 429 255 L 415 255 Z" fill="#BCE0F3" stroke="white" stroke-width="1.5"/>
+                            <path d="M 415 290 A 7 7 0 0 1 429 290 L 429 305 L 415 305 Z" fill="#BCE0F3" stroke="white" stroke-width="1.5"/>
+                            <path d="M 415 340 A 7 7 0 0 1 429 340 L 429 355 L 415 355 Z" fill="#BCE0F3" stroke="white" stroke-width="1.5"/>
+                            <path d="M 415 390 A 7 7 0 0 1 429 390 L 429 405 L 415 405 Z" fill="#BCE0F3" stroke="white" stroke-width="1.5"/>
+                            <path d="M 415 440 A 7 7 0 0 1 429 440 L 429 455 L 415 455 Z" fill="#BCE0F3" stroke="white" stroke-width="1.5"/>
+                        </g>
+                    </g>
+
+                    <!-- 藍色頸環與黃圓屋頂：精準下移 25 像素來接合 -->
+                    <g transform="translate(0, 25)">
+                        <rect x="380" y="210" width="65" height="20" rx="10" fill="#184BA0" />
+                        <g transform="translate(0, 210) scale(1, 0.7) translate(0, -210)">
+                            <path d="M 386.5 210 C 351.7 170, 380 125, 412.5 105 C 445 125, 473.3 170, 438.5 210 Z" fill="url(#goldGrad)" />
+                        </g>
+                    </g>
+                </g>
+
+                <!-- 1. 左側黃色建築 (重構形狀細節與層級，確保在粉色塔樓後方) -->
+                <g id="left-yellow-building">
+                    <rect x="30" y="260" width="55" height="230" fill="#F7D4A8" />
+                    <!-- 橘黃色突出樓層條紋 -->
+                    <rect x="15" y="290" width="70" height="25" fill="#F5AC45" />
+                    <rect x="15" y="335" width="70" height="25" fill="#F5AC45" />
+                    <rect x="15" y="380" width="70" height="25" fill="#F5AC45" />
+                    <rect x="15" y="425" width="70" height="25" fill="#F5AC45" />
+                    <!-- 頂部白色城垛 -->
+                    <rect x="25" y="250" width="65" height="15" fill="#FFFFFF" />
+                    <!-- 城垛牙齒 -->
+                    <rect x="25" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="50" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="75" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <!-- 藍色倒三角形 -->
+                    <polygon points="31,255 37,255 34,261" fill="#1C408B" />
+                    <polygon points="46,255 52,255 49,261" fill="#1C408B" />
+                    <polygon points="61,255 67,255 64,261" fill="#1C408B" />
+                    <polygon points="76,255 82,255 79,261" fill="#1C408B" />
+                </g>
+
+                <!-- 2. 中央黃色建築 (Center Yellow Building) -->
+                <g id="center-yellow-building">
+                    <rect x="100" y="260" width="310" height="230" fill="#F7D4A8" />
+                    <!-- 橘黃色樓層 -->
+                    <rect x="100" y="290" width="310" height="25" fill="#F5AC45" />
+                    <rect x="100" y="335" width="310" height="25" fill="#F5AC45" />
+                    <rect x="100" y="380" width="310" height="25" fill="#F5AC45" />
+                    <rect x="100" y="425" width="310" height="25" fill="#F5AC45" />
+                    <!-- 頂部白色城垛 -->
+                    <rect x="100" y="250" width="310" height="15" fill="#FFFFFF" />
+                    <!-- 城垛牙齒 -->
+                    <rect x="115" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="145" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="175" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="205" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="235" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="265" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="295" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="325" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="355" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <rect x="385" y="235" width="12" height="15" fill="#FFFFFF" />
+                    <!-- 藍色倒三角形 (數量增加 1.5 倍為 15 個，位置間距均分) -->
+                    <polygon points="107,255 113,255 110,261" fill="#1C408B" />
+                    <polygon points="127,255 133,255 130,261" fill="#1C408B" />
+                    <polygon points="147,255 153,255 150,261" fill="#1C408B" />
+                    <polygon points="167,255 173,255 170,261" fill="#1C408B" />
+                    <polygon points="187,255 193,255 190,261" fill="#1C408B" />
+                    <polygon points="207,255 213,255 210,261" fill="#1C408B" />
+                    <polygon points="227,255 233,255 230,261" fill="#1C408B" />
+                    <polygon points="247,255 253,255 250,261" fill="#1C408B" />
+                    <polygon points="267,255 273,255 270,261" fill="#1C408B" />
+                    <polygon points="287,255 293,255 290,261" fill="#1C408B" />
+                    <polygon points="307,255 313,255 310,261" fill="#1C408B" />
+                    <polygon points="327,255 333,255 330,261" fill="#1C408B" />
+                    <polygon points="347,255 353,255 350,261" fill="#1C408B" />
+                    <polygon points="367,255 373,255 370,261" fill="#1C408B" />
+                    <polygon points="387,255 393,255 390,261" fill="#1C408B" />
+                </g>
+
+                <!-- 3. 左側粉紅主高塔與屋頂 (設定中心 X=120, 底部 Y=490 為錨點，水平拉寬 5% 且垂直壓扁 15%) -->
+                <g transform="translate(120, 490) scale(1.05, 0.85) translate(-120, -490)">
+                    <!-- 塔身改為下窄上寬(底部為頂部的 90%)，增加深粉色邊框加強立體層次 -->
+                    <polygon points="80,190 160,190 156,490 84,490" fill="#ECA2B9" stroke="#D67B94" stroke-width="2" />
+                    <!-- 左側小窗戶 (向下精準平移 10 像素) -->
+                    <path d="M 112 230 A 8 8 0 0 1 128 230 L 128 250 L 112 250 Z" fill="#BCE0F3" stroke="white" stroke-width="2"/>
+                    <path d="M 112 280 A 8 8 0 0 1 128 280 L 128 300 L 112 300 Z" fill="#BCE0F3" stroke="white" stroke-width="2"/>
+                    <path d="M 112 330 A 8 8 0 0 1 128 330 L 128 350 L 112 350 Z" fill="#BCE0F3" stroke="white" stroke-width="2"/>
+                    <path d="M 112 380 A 8 8 0 0 1 128 380 L 128 400 L 112 400 Z" fill="#BCE0F3" stroke="white" stroke-width="2"/>
+                    <path d="M 112 430 A 8 8 0 0 1 128 430 L 128 450 L 112 450 Z" fill="#BCE0F3" stroke="white" stroke-width="2"/>
+                    <!-- 左側圓頂與藍色基座 -->
+                    <rect x="70" y="160" width="100" height="30" rx="15" fill="#184BA0" />
+                    <g transform="translate(0, 160) scale(1, 0.7) translate(0, -160)">
+                        <path d="M 79.6 160 C 33.3 110, 70 30, 120 0 C 170 30, 206.8 110, 160.4 160 Z" fill="url(#goldGrad)" />
+                    </g>
+                </g>
+
+                <!-- 5. 前景雲朵樹叢群組 (包含原本與新增的3組，營造層次與空間感) -->
+                <g id="front-bushes">
+                    <!-- 左側三叢樹叢：打包在一起，高度降低1/3 (scaleY=0.67)，整體再縮小1/3 (scaleX=0.67, scaleY=0.67) => 總縮放 scale(0.67, 0.45) -->
+                    <g transform="translate(100, 500) scale(0.67, 0.45) translate(-100, -500)">
+                        <!-- 新增 1：左後方深綠色樹叢 (最底層) -->
+                        <path d="M -30 500 
+                                 C -30 420, 30 410, 45 455 
+                                 C 55 420, 110 440, 95 500 
+                                 Z" 
+                              fill="#4A9973" stroke="#13694A" stroke-width="12" stroke-linejoin="round" />
+
+                        <!-- 原本的左側主樹叢 (中間層) -->
+                        <path d="M -5 500 
+                                 C -10 465, 25 465, 30 475 
+                                 C 25 365, 115 365, 115 455 
+                                 C 120 440, 140 440, 145 460 
+                                 C 160 435, 225 450, 215 500 
+                                 Z" 
+                              fill="#6DB387" stroke="#189476" stroke-width="12" stroke-linejoin="round" />
+
+                        <!-- 新增 3：左前方淺綠色小樹叢 (最前層) -->
+                        <path d="M 120 500 
+                                 C 110 460, 160 450, 175 475 
+                                 C 190 450, 240 460, 225 500 
+                                 Z" 
+                              fill="#8FD1A6" stroke="#279C6B" stroke-width="12" stroke-linejoin="round" />
+                    </g>
+
+                    <!-- 右側兩叢樹叢：比照左側進行高度降低與整體縮小，並新增一層營造空間感 -->
+                    <g transform="translate(410, 500) scale(0.67, 0.45) translate(-410, -500)">
+                        <!-- 右後方藍綠色樹叢 (原有的，將邊框加粗為 12 確保縮小後清晰) -->
+                        <path d="M 355 500 
+                                 C 345 450, 395 440, 410 470 
+                                 C 425 440, 475 450, 460 500 
+                                 Z" 
+                              fill="#5C9EA8" stroke="#22717A" stroke-width="12" stroke-linejoin="round" />
+                              
+                        <!-- 右前方淺藍綠色樹叢 (新增的，疊加在右前方增加層次) -->
+                        <path d="M 400 500 
+                                 C 390 460, 435 450, 450 475 
+                                 C 465 450, 510 460, 495 500 
+                                 Z" 
+                              fill="#7ABBC4" stroke="#2C8A96" stroke-width="12" stroke-linejoin="round" />
+                    </g>
+                </g>
+
+            </g>
+        </svg>
+    </div>
+
+</body>
+</html>

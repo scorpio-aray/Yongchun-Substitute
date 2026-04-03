@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+/* 你原本的純 CSS 點綴寫在這裡 */
+body {
+  @apply bg-slate-50; /* 你甚至可以在純 CSS 裡用 @apply */
+}
