@@ -120,7 +120,7 @@
                     <stop offset="40%" stop-color="#FCD557" />
                     <stop offset="90%" stop-color="#E8A922" />
                 </radialGradient>
-                <!-- 跑道裁切範圍 -->
+                <!-- 跑道裁切範圍 (與草地邊界完全吻合) -->
                 <clipPath id="trackClip">
                     <path d="M 0 450 Q 400 420 800 480 L 800 1000 L 0 1000 Z" />
                 </clipPath>
@@ -165,8 +165,8 @@
             <!-- 遠方草地坡度 -->
             <path d="M 0 450 Q 400 420 800 480 L 800 1000 L 0 1000 Z" fill="#A4D255" />
             
-            <!-- 右下角操場跑道 (透視視角調整並往上擴增為 8 條線) -->
-            <g id="running-track">
+            <!-- 右下角操場跑道 (加上 clip-path="url(#trackClip)" 確保只畫在草地上！) -->
+            <g id="running-track" clip-path="url(#trackClip)">
                 <!-- 跑道磚紅色底層 (重新計算 evenodd 填滿半徑，完美包覆 8 條線的透視跑道) -->
                 <path fill-rule="evenodd" d="M 52 850 A 798 291 0 1 1 1648 850 A 798 291 0 1 1 52 850 M 450 850 A 400 155 0 1 1 1250 850 A 400 155 0 1 1 450 850" fill="#C47373" />
                 <!-- 跑道白色分隔線 (8 條線，Y軸半徑間距 18，X軸半徑間距 54，產生遠近透視感) -->
@@ -304,15 +304,15 @@
             // 確保所有關鍵視覺都不會被裁切，達到最完美的自適應效果。
             if (ratio > 1.6) {
                 // 【超寬螢幕】(如 16:9 電腦螢幕)：高度被大幅裁切
-                // 策略：城堡縮小並下移、跑道大幅上移，讓兩者都能安全擠進扁平的畫面中
+                // 策略：城堡縮小並下移、跑道稍微上移 (已套用 clip-path，會完美切齊草地邊緣)
                 castle.setAttribute('transform', 'translate(40, 280) scale(0.75)');
-                track.setAttribute('transform', 'translate(0, -280)');
+                track.setAttribute('transform', 'translate(0, -100)');
                 clouds.setAttribute('transform', 'translate(0, 150)');
             } else if (ratio > 1.2) {
                 // 【寬螢幕】(如一般筆電或平板橫向)
                 // 策略：微微調整上下間距
                 castle.setAttribute('transform', 'translate(30, 200) scale(0.8)');
-                track.setAttribute('transform', 'translate(0, -150)');
+                track.setAttribute('transform', 'translate(0, -50)');
                 clouds.setAttribute('transform', 'translate(0, 80)');
             } else if (ratio < 0.8) {
                 // 【長螢幕】(如手機直向)：寬度被大幅裁切
